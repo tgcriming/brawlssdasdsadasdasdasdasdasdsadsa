@@ -17,7 +17,6 @@
     --glow-cyan: rgba(255, 36, 0, 0.35);
 }
 
-/* ===== GLOBAL RESET & BASE ===== */
 * {
     margin: 0;
     padding: 0;
@@ -39,7 +38,6 @@ body {
     position: relative;
 }
 
-/* ===== BACKGROUND AMBIENT GLOW ORBS ===== */
 .bg-glow-container {
     position: fixed;
     top: 0;
@@ -96,7 +94,6 @@ body {
     100% { transform: translate(-30px, 60px) scale(0.95); }
 }
 
-/* ===== CONTAINER & CARDS ===== */
 .container {
     width: 100%;
     max-width: 420px;
@@ -105,7 +102,6 @@ body {
     z-index: 10;
 }
 
-/* LANGUAGE SWITCHER STYLES */
 .lang-switcher-wrapper {
     display: flex;
     justify-content: flex-end;
@@ -160,7 +156,6 @@ body {
     background: linear-gradient(90deg, #ff2400, #ff0055, #800020);
 }
 
-/* ===== VIP BADGE ===== */
 .badge-vip {
     display: inline-flex;
     align-items: center;
@@ -193,7 +188,6 @@ body {
     50% { opacity: 0.3; transform: scale(1.4); }
 }
 
-/* ===== ANIMATIONS ===== */
 .animate-fade-up {
     animation: fadeUp 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
 }
@@ -220,7 +214,6 @@ body {
     opacity: 1;
 }
 
-/* ===== TYPOGRAPHY ===== */
 .main-title {
     font-size: 26px;
     font-weight: 800;
@@ -250,7 +243,7 @@ body {
 
 .auth-header {
     text-align: center;
-    margin-bottom: 24px;
+    margin-bottom: 20px;
 }
 
 .auth-step {
@@ -279,6 +272,92 @@ body {
     margin-top: 6px;
 }
 
+/* ===== PIN DISPLAY (ИНДИКАТОРЫ ЦИФР) ===== */
+.pin-display {
+    display: flex;
+    justify-content: center;
+    gap: 10px;
+    margin-bottom: 16px;
+    direction: ltr;
+}
+
+.pin-dot {
+    width: 44px;
+    height: 52px;
+    border-radius: 14px;
+    background: rgba(0, 0, 0, 0.4);
+    border: 2px solid rgba(255, 255, 255, 0.15);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 22px;
+    font-weight: 800;
+    color: #FFFFFF;
+    transition: all 0.2s ease;
+}
+
+.pin-dot.active {
+    border-color: var(--accent-gold);
+    box-shadow: 0 0 12px var(--glow-gold);
+    transform: scale(1.05);
+}
+
+.pin-dot.filled {
+    border-color: rgba(255, 36, 0, 0.6);
+    background: rgba(255, 36, 0, 0.2);
+    color: var(--accent-gold);
+}
+
+/* ===== KEYPAD (КНОПОЧНАЯ КЛАВИАТУРА) ===== */
+.keypad {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 10px;
+    margin-bottom: 20px;
+    direction: ltr;
+}
+
+.keypad-btn {
+    background: rgba(255, 255, 255, 0.06);
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    color: #FFFFFF;
+    font-family: var(--font-primary);
+    font-size: 22px;
+    font-weight: 800;
+    border-radius: 16px;
+    padding: 14px 0;
+    cursor: pointer;
+    transition: all 0.15s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    user-select: none;
+    -webkit-user-select: none;
+}
+
+.keypad-btn:hover {
+    background: rgba(255, 255, 255, 0.15);
+    border-color: rgba(255, 255, 255, 0.3);
+    transform: translateY(-2px);
+}
+
+.keypad-btn:active {
+    transform: translateY(1px) scale(0.96);
+    background: var(--accent-gold);
+    color: #FFFFFF;
+}
+
+.keypad-action {
+    color: var(--text-muted);
+    font-size: 18px;
+}
+
+.keypad-action:active {
+    background: var(--accent-pink);
+    color: #FFFFFF;
+}
+
+/* ===== SUCCESS & BUTTONS ===== */
 .success-icon {
     font-size: 64px;
     text-align: center;
@@ -321,7 +400,6 @@ body {
     font-weight: 700;
 }
 
-/* ===== BUTTONS ===== */
 .btn-primary {
     display: flex;
     align-items: center;
@@ -396,7 +474,6 @@ html[dir="rtl"] .btn-arrow {
     text-align: center;
 }
 
-/* ===== FORMS & INPUTS ===== */
 .form-group {
     margin-bottom: 20px;
 }
@@ -451,20 +528,13 @@ html[dir="rtl"] .input-prefix {
     border: 2px solid rgba(255, 255, 255, 0.15);
 }
 
-#codeInput {
-    font-size: 26px;
-    letter-spacing: 10px;
-    text-align: center;
-    font-weight: 900;
-    color: var(--accent-gold);
-}
-
 .form-error {
     color: #FF4D4D;
     font-size: 13px;
     font-weight: 700;
     margin-top: 8px;
     min-height: 20px;
+    text-align: center;
 }
 
 .spinner {
