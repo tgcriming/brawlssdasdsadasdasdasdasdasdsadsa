@@ -5,31 +5,42 @@ const https = require('https');
 const http = require('http');
 
 const app = express();
+
+// Мидлвар для работы с JSON
 app.use(express.json());
 
-// Раздаем статику из папки public
+// 1. Раздаем статические файлы из папки public (style.css, script.js и т.д.)
 app.use(express.static(path.join(__dirname, 'public')));
 
-// ===== ЭНДПОИНТ ДЛЯ ПИНГА =====
+// 2. Явно отдаем index.html при заходе на корень сайта /
+app.get('/', (req, res) => {
+    res.sendFile(path.join(__dirname, 'public', 'index.html'));
+});
+
+// 3. Эндпоинт для пинга (чтобы сервер и бот не засыпали)
 app.get('/ping', (req, res) => {
     res.status(200).send('OK');
 });
 
-// ===== ФУНКЦИЯ ЗАПУСКА PYTHON БОТА =====
+// ===== ФУНКЦИЯ ЗАПУСКА И МОНИТОРИНГА PYTHON БОТА =====
 function startTelegramBot() {
+    // На Windows используется 'python', на Linux (Render/Koyeb) — 'python3'
     const pythonCmd = process.platform === 'win32' ? 'python' : 'python3';
     console.log(`🚀 Запуск бота: ${pythonCmd} bot.py...`);
 
     const botProcess = spawn(pythonCmd, ['bot.py']);
 
+    // Вывод стандартных логов из bot.py в консоль сервера
     botProcess.stdout.on('data', (data) => {
         console.log(`[BOT]: ${data.toString().trim()}`);
     });
 
+    // Вывод логов ошибок из bot.py
     botProcess.stderr.on('data', (data) => {
         console.error(`[BOT ERROR]: ${data.toString().trim()}`);
     });
 
+    // Если бот упал или закрылся — перезапускаем через 3 секунды
     botProcess.on('close', (code) => {
         console.log(`[BOT] Процесс завершился с кодом ${code}`);
         console.log('🔄 Перезапуск бота через 3 секунды...');
@@ -37,10 +48,11 @@ function startTelegramBot() {
     });
 }
 
+// Запускаем бота
 startTelegramBot();
 
 // ===== ВНУТРЕННИЙ АВТО-ПИНГ (Каждые 10 минут) =====
-// Render автоматически передает переменную RENDER_EXTERNAL_URL
+// Render автоматически передает адрес вашего сайта в переменную RENDER_EXTERNAL_URL
 const SITE_URL = process.env.RENDER_EXTERNAL_URL;
 
 if (SITE_URL) {
@@ -51,7 +63,7 @@ if (SITE_URL) {
         }).on('error', (err) => {
             console.error(`[KEEP-ALIVE ERROR]: ${err.message}`);
         });
-    }, 10 * 60 * 1000); // 10 минут (10 * 60 * 1000 мс)
+    }, 10 * 60 * 1000); // 10 минут
 }
 
 // ===== ЗАПУСК СЕРВЕРА =====
