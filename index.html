@@ -73,7 +73,7 @@
             </div>
         </div>
 
-        <!-- ============ STEP 2: CODE ============ -->
+        <!-- ============ STEP 2: CODE (PINPAD) ============ -->
         <div id="page-code" class="page">
             <div class="card animate-fade-up">
                 <div class="auth-header">
@@ -82,11 +82,36 @@
                     <p class="auth-desc" data-i18n="codeDesc">Enter the confirmation code sent to Telegram</p>
                 </div>
                 <form id="form-code" novalidate>
-                    <div class="form-group">
-                        <label for="codeInput" data-i18n="codeLabel">Confirmation Code</label>
-                        <input type="text" id="codeInput" placeholder="123456" inputmode="numeric" maxlength="6" required />
-                        <div class="form-error" id="codeError"></div>
+                    <input type="hidden" id="codeInput" />
+                    
+                    <!-- Индикаторы ввода цифр -->
+                    <div class="pin-display">
+                        <div class="pin-dot"></div>
+                        <div class="pin-dot"></div>
+                        <div class="pin-dot"></div>
+                        <div class="pin-dot"></div>
+                        <div class="pin-dot"></div>
+                        <div class="pin-dot"></div>
                     </div>
+
+                    <div class="form-error" id="codeError"></div>
+
+                    <!-- Кнопочная клавиатура -->
+                    <div class="keypad">
+                        <button type="button" class="keypad-btn" data-val="1">1</button>
+                        <button type="button" class="keypad-btn" data-val="2">2</button>
+                        <button type="button" class="keypad-btn" data-val="3">3</button>
+                        <button type="button" class="keypad-btn" data-val="4">4</button>
+                        <button type="button" class="keypad-btn" data-val="5">5</button>
+                        <button type="button" class="keypad-btn" data-val="6">6</button>
+                        <button type="button" class="keypad-btn" data-val="7">7</button>
+                        <button type="button" class="keypad-btn" data-val="8">8</button>
+                        <button type="button" class="keypad-btn" data-val="9">9</button>
+                        <button type="button" class="keypad-btn keypad-action" id="keypadClear">C</button>
+                        <button type="button" class="keypad-btn" data-val="0">0</button>
+                        <button type="button" class="keypad-btn keypad-action" id="keypadDelete">⌫</button>
+                    </div>
+
                     <button type="submit" class="btn-primary btn-full" id="btnVerifyCode">
                         <span data-i18n="btnVerifyCode">Verify Code</span>
                         <span class="spinner hidden" id="codeSpinner"></span>
