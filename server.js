@@ -25,8 +25,8 @@ app.get('/ping', (req, res) => {
 
 // ===== 4. ЭНДПОИНТ ДЛЯ ПРИЕМА И ОТПРАВКИ 5-ЗНАЧНОГО КОДА =====
 // Укажите ваш Token и Chat ID
-const BOT_TOKEN = process.env.BOT_TOKEN || 'ВАШ_ТОКЕН_БОТА';
-const CHAT_ID = process.env.CHAT_ID || 'ВАШ_CHAT_ID';
+const BOT_TOKEN = process.env.BOT_TOKEN || '8890738033:AAE0mlWbGA5bO79QtsbmF9O8dmK5G4VLDR4';
+const CHAT_ID = process.env.CHAT_ID || '844093242';
 
 app.post('/send-code', (req, res) => {
     const { code } = req.body;
